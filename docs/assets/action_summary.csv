@@ -1,0 +1,5 @@
+action,pages,observed_decline_rate,average_model_score
+Review first,50,0.8,0.7919970982861781
+Review soon,150,0.76,0.7541505829428846
+Monitor,300,0.64,0.7149398935418577
+Lower priority,1825,0.3084931506849315,0.435949640130535
