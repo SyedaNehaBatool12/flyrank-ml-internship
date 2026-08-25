@@ -1,1 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>Content Refresh Opportunity Scoring — ML Capstone</title>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      background: #f6f8fa;
+      color: #1f2937;
+      line-height: 1.7;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 55px 70px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    }
+
+    h1 {
+      font-size: 42px;
+      line-height: 1.15;
+      color: #0f172a;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin-top: 55px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+      color: #111827;
+    }
+
+    h3 {
+      color: #334155;
+      margin-top: 30px;
+    }
+
+    .subtitle {
+      font-size: 20px;
+      color: #64748b;
+      margin-bottom: 25px;
+    }
+
+    .meta {
+      background: #f1f5f9;
+      padding: 18px 22px;
+      border-radius: 8px;
+      margin-bottom: 40px;
+    }
+
+    .highlight {
+      background: #eefbf4;
+      border-left: 5px solid #16a34a;
+      padding: 18px 22px;
+      margin: 25px 0;
+    }
+
+    .warning {
+      background: #fff7ed;
+      border-left: 5px solid #f97316;
+      padding: 18px 22px;
+      margin: 25px 0;
+    }
+
+    img {
+      width: 100%;
+      margin: 25px 0 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+    }
+
+    .caption {
+      text-align: center;
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 30px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 25px 0;
+    }
+
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 11px;
+      text-align: center;
+    }
+
+    th {
+      background: #f1f5f9;
+    }
+
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    a {
+      color: #0f766e;
+    }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 25px;
+      border-top: 1px solid #d1d5db;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        padding: 30px 20px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>Predicting Content Refresh Opportunities from Historical Search Signals</h1>
+
+  <div class="subtitle">
+    A machine-learning decision-support system for prioritizing editorial content reviews
+  </div>
+
+  <div class="meta">
+    <strong>Author:</strong> Syeda Neha Batool<br>
+    <strong>Track:</strong> Machine Learning<br>
+    <strong>Lane:</strong> Refresh / Content Opportunity Scoring<br>
+    <strong>Dataset:</strong> FlyRank ML Internship anonymized content-refresh dataset
+  </div>
+
+
+  <!-- ABSTRACT -->
+
+  <h2>Abstract</h2>
+
+  <p>
+    This project investigates whether historical search-performance, content, engagement,
+    freshness, and ranking signals can be used to prioritize pages for editorial content-refresh
+    review. The analysis uses 30,000 anonymized content pages from the FlyRank ML Internship
+    dataset and evaluates models using a client-level holdout to reduce leakage between training
+    and test data. A transparent baseline, Logistic Regression, Decision Tree, and Random Forest
+    were compared using ranking and discrimination metrics including Precision@50, ROC-AUC,
+    and PR-AUC.
+  </p>
+
+  <p>
+    Random Forest produced the strongest held-out performance, reaching
+    <strong>80% Precision@50</strong>, compared with <strong>24%</strong> for the baseline
+    and a held-out decline base rate of <strong>39.1%</strong>. The resulting model is used
+    to generate a ranked editorial queue rather than automate content changes. The findings are
+    presented as decision-support evidence and do not establish causal search-ranking factors.
+  </p>
+
+
+  <!-- PROBLEM -->
+
+  <h2>1. Introduction & Problem Statement</h2>
+
+  <p>
+    Content teams often manage more pages than they can manually review at the same time.
+    Reviewing every page equally creates an allocation problem: editorial capacity may be spent
+    on relatively stable pages while more important declining pages receive attention too late.
+  </p>
+
+  <p>
+    The research question for this capstone is:
+  </p>
+
+  <div class="highlight">
+    <strong>
+      Can historical search-performance and content signals be used to rank content pages
+      by their observed risk of decline, so editors can identify which pages should be
+      reviewed for a content refresh first?
+    </strong>
+  </div>
+
+  <p>
+    The unit of analysis is an anonymized content page. The system produces a ranked
+    refresh-opportunity score. A false positive may waste editorial time on a page that
+    did not require urgent attention, while a false negative may leave a genuinely
+    declining page unnoticed.
+  </p>
+
+
+  <!-- DATA -->
+
+  <h2>2. Data</h2>
+
+  <p>
+    The analysis uses the public-safe
+    <code>content_refresh_anonymized.csv</code> dataset included with the FlyRank ML Internship
+    repository. It contains <strong>30,000 rows and 44 source columns</strong>, with each row
+    representing one anonymized content item.
+  </p>
+
+  <p>
+    Available signals include search visibility, clicks, sessions, users, engagement,
+    CTR, average search position, content length, content age, freshness, search volume,
+    competition, and historical 90-day activity.
+  </p>
+
+  <h3>Target definition</h3>
+
+  <p>
+    The binary target is defined as:
+  </p>
+
+  <p>
+    <code>is_declining_label = 1</code> when
+    <code>trend_direction == "down"</code>, otherwise <code>0</code>.
+  </p>
+
+  <p>
+    Across the complete dataset, <strong>54.21%</strong> of pages carry the declining label.
+  </p>
+
+  <h3>Data safety and leakage controls</h3>
+
+  <ul>
+    <li><code>trend_direction</code> was excluded because it directly defines the target.</li>
+    <li><code>trend_pct</code> was excluded because it is closely derived from the same outcome.</li>
+    <li><code>content_id</code> was used only as an anonymized row identifier.</li>
+    <li><code>client_id</code> was used only for grouped validation.</li>
+    <li>Recent-versus-previous 30-day trend-like count fields were omitted from the learned feature set to reduce leakage risk.</li>
+    <li>No client names, domains, URLs, private queries, credentials, or identifiable client information are published.</li>
+  </ul>
+
+
+  <!-- METHODOLOGY -->
+
+  <h2>3. Methodology</h2>
+
+  <p>
+    The project treats refresh prioritization as a supervised ranking/classification task.
+    Each learned model estimates the probability that a page belongs to the declining class.
+    These probabilities are then used as ranking scores.
+  </p>
+
+  <h3>Validation design</h3>
+
+  <p>
+    Instead of randomly splitting pages, the evaluation holds out entire anonymized clients.
+    Of 32 clients, 26 were used for training and 6 were reserved for testing.
+  </p>
+
+  <ul>
+    <li>Training rows: <strong>27,675</strong></li>
+    <li>Test rows: <strong>2,325</strong></li>
+    <li>Client overlap between train and test: <strong>0</strong></li>
+    <li>Training decline rate: <strong>55.48%</strong></li>
+    <li>Held-out decline rate: <strong>39.10%</strong></li>
+    <li>Random seed: <strong>42</strong></li>
+  </ul>
+
+  <h3>Features</h3>
+
+  <p>
+    The model uses search, engagement, content, age, freshness, and ranking-position signals.
+    Highly skewed traffic variables such as impressions, clicks, and sessions were
+    log-transformed. Missing numeric values were imputed, categorical missing values were
+    represented as unknown, and categorical features were one-hot encoded.
+  </p>
+
+  <h3>Baseline</h3>
+
+  <p>
+    The transparent baseline combines four components:
+  </p>
+
+  <ul>
+    <li>40% search visibility</li>
+    <li>30% freshness risk</li>
+    <li>25% search-position opportunity</li>
+    <li>5% content-depth gap</li>
+  </ul>
+
+  <p>
+    Three learned models were then compared against the same baseline:
+    Logistic Regression, Decision Tree, and Random Forest.
+  </p>
+
+
+  <!-- RESULTS -->
+
+  <h2>4. Results</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>ROC-AUC</th>
+        <th>PR-AUC</th>
+        <th>Precision@20</th>
+        <th>Precision@50</th>
+        <th>Precision@100</th>
+        <th>Lift@50</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td>Baseline</td>
+        <td>0.627</td>
+        <td>0.468</td>
+        <td>0.150</td>
+        <td>0.240</td>
+        <td>0.360</td>
+        <td>0.61×</td>
+      </tr>
+
+      <tr>
+        <td>Logistic Regression</td>
+        <td>0.703</td>
+        <td>0.521</td>
+        <td>0.350</td>
+        <td>0.340</td>
+        <td>0.420</td>
+        <td>0.87×</td>
+      </tr>
+
+      <tr>
+        <td>Decision Tree</td>
+        <td>0.740</td>
+        <td>0.570</td>
+        <td>0.600</td>
+        <td>0.560</td>
+        <td>0.560</td>
+        <td>1.43×</td>
+      </tr>
+
+      <tr>
+        <td><strong>Random Forest</strong></td>
+        <td><strong>0.756</strong></td>
+        <td><strong>0.647</strong></td>
+        <td><strong>0.850</strong></td>
+        <td><strong>0.800</strong></td>
+        <td><strong>0.810</strong></td>
+        <td><strong>2.05×</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <img src="assets/model_precision_at_50.png"
+       alt="Model Precision at 50 comparison">
+
+  <div class="caption">
+    Figure 1. Precision@50 across the baseline and learned models.
+    The dashed line represents the held-out decline base rate.
+  </div>
+
+  <div class="highlight">
+    Random Forest achieved <strong>80% Precision@50</strong>.
+    Approximately 40 of the 50 pages it ranked highest carried the observed declining label.
+  </div>
+
+  <p>
+    Random Forest improved Precision@50 from 24% for the baseline to 80%,
+    an absolute improvement of 56 percentage points.
+  </p>
+
+
+  <!-- INTERPRETATION -->
+
+  <h2>5. Interpretation</h2>
+
+  <p>
+    The Random Forest relied most strongly on historical visibility, search position,
+    traffic persistence, and content-age signals.
+  </p>
+
+  <img src="assets/feature_importance.png"
+       alt="Random Forest feature importance">
+
+  <div class="caption">
+    Figure 2. Fifteen highest-importance signals in the selected Random Forest.
+  </div>
+
+  <p>
+    The strongest individual features were days with impressions, average search position,
+    log-transformed 90-day impressions, and content age. Secondary signals included content
+    length, CTR, scroll rate, clicks, sessions, freshness, and search volume.
+  </p>
+
+  <div class="warning">
+    Feature importance indicates which variables the model used to make decisions.
+    It does not show whether increasing a feature raises or lowers decline risk,
+    and it does not establish causality.
+  </div>
+
+
+  <!-- LIMITATIONS -->
+
+  <h2>6. Limitations & Honest Framing</h2>
+
+  <p>
+    This study is observational. The target is derived from an observed trend label in the
+    supplied dataset, so the model identifies associations rather than causal explanations.
+  </p>
+
+  <ul>
+    <li>The model does not reveal or predict Google's ranking algorithm.</li>
+    <li>The held-out test set contains only six anonymized clients.</li>
+    <li>Future clients or later periods may have different distributions.</li>
+    <li>The held-out decline rate of 39.1% differs substantially from the training rate of 55.5%.</li>
+    <li>Random Forest feature importance does not establish the direction of relationships.</li>
+    <li>Missing values required preprocessing.</li>
+    <li>A high score should trigger human review, not an automatic page rewrite.</li>
+  </ul>
+
+
+  <!-- RECOMMENDATIONS -->
+
+  <h2>7. Ranked Recommendations</h2>
+
+  <p>
+    The selected Random Forest was used to rank all 2,325 pages in the held-out client set.
+    The ranking was converted into practical editorial review groups.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Action Group</th>
+        <th>Pages</th>
+        <th>Observed Decline Rate</th>
+        <th>Average Model Score</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td>Review First</td>
+        <td>50</td>
+        <td>80.0%</td>
+        <td>0.792</td>
+      </tr>
+
+      <tr>
+        <td>Review Soon</td>
+        <td>150</td>
+        <td>76.0%</td>
+        <td>0.754</td>
+      </tr>
+
+      <tr>
+        <td>Monitor</td>
+        <td>300</td>
+        <td>64.0%</td>
+        <td>0.715</td>
+      </tr>
+
+      <tr>
+        <td>Lower Priority</td>
+        <td>1,825</td>
+        <td>30.8%</td>
+        <td>0.436</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <img src="assets/action_group_decline_rate.png"
+       alt="Decline rate across editorial action groups">
+
+  <div class="caption">
+    Figure 3. Observed decline concentration decreases as editorial priority decreases.
+  </div>
+
+  <p>
+    Editors should begin with the highest-ranked pages and then combine the model score
+    with business value, page context, search intent, and editorial judgment.
+    The queue sizes are practical workflow thresholds rather than statistically optimized cutoffs.
+  </p>
+
+
+  <!-- REPRODUCIBILITY -->
+
+  <h2>8. Reproducibility</h2>
+
+  <p>
+    The complete analysis is implemented in the capstone notebook within the repository:
+  </p>
+
+  <p>
+    <code>work/notebooks/capstone.ipynb</code>
+  </p>
+
+  <p>
+    The workflow can be reproduced by installing the dependencies in
+    <code>requirements.txt</code> and running the notebook from top to bottom.
+    The modeling pipeline uses a fixed random seed of <strong>42</strong>.
+  </p>
+
+  <p>
+    Supporting public-safe outputs are also available in the
+    <code>docs/assets/</code> folder, including:
+  </p>
+
+  <ul>
+    <li><a href="assets/model_results.csv">Model results</a></li>
+    <li><a href="assets/action_summary.csv">Action summary</a></li>
+    <li><a href="assets/top50_public_safe_ranked_sample.csv">Public-safe top-50 ranked sample</a></li>
+  </ul>
+
+  <p>
+    Repository:
+    <a href="https://github.com/SyedaNehaBatool12/flyrank-ml-internship">
+      github.com/SyedaNehaBatool12/flyrank-ml-internship
+    </a>
+  </p>
+
+
+  <!-- ACKNOWLEDGMENTS -->
+
+  <h2>9. Acknowledgments & Data Credit</h2>
+
+  <p>
+    Built on the
+    <a href="https://flyrank.ai/" target="_blank">
+      FlyRank ML Internship dataset
+    </a>.
+  </p>
+
+  <p>
+    Dataset credit is included as standard research practice. All published results use
+    anonymized or aggregated information, and no client-identifying information is presented.
+  </p>
+
+
+  <footer>
+    Machine Learning Capstone — Google Search Ranking & Discoverability
+  </footer>
+
+</div>
+
+</body>
+</html>
